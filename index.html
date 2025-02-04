@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TextEdit Prototype</title>
+  <style>
+    /* General Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Navbar Styles */
+    .navbar {
+      width: 100%;
+      background-color: #333;
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 10;
+    }
+
+    .navbar .path {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .navbar .nav-actions {
+      display: flex;
+      gap: 15px;
+    }
+
+    .navbar button {
+      background-color: #444;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .navbar button:hover {
+      background-color: #555;
+    }
+
+    /* Sidebar Styles */
+    .sidebar {
+      position: absolute;
+      top: 60px; /* Space for navbar */
+      left: 0;
+      height: calc(100% - 60px);
+      width: 250px;
+      background-color: #f5f5f5;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+      width: 60px;
+    }
+
+    .sidebar-header {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      cursor: pointer;
+    }
+
+    .notes-list {
+      margin-top: 20px;
+      padding: 0;
+    }
+
+    .note-item {
+      font-size: 16px;
+      margin-bottom: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .note-item:hover {
+      color: #0073e6;
+    }
+
+    .note-item .add-icon {
+      font-size: 18px;
+      color: #0073e6;
+      cursor: pointer;
+    }
+
+    /* Main Content Styles */
+    .main-content {
+      margin-left: 250px;
+      padding: 60px 40px 20px 40px;
+      width: calc(100% - 250px);
+      overflow-y: auto;
+      background-color: #fafafa;
+      transition: margin-left 0.3s ease;
+    }
+
+    .main-content.collapsed {
+      margin-left: 60px;
+      width: calc(100% - 60px);
+    }
+
+    .note-editor {
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .note-editor .cover {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .cover img {
+      width: 120px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .emoji {
+      font-size: 40px;
+      cursor: pointer;
+    }
+
+    .note-content {
+      width: 100%;
+      height: 400px;
+      padding: 10px;
+      font-size: 16px;
+      resize: none;
+      border: none;  /* Removed borders */
+      outline: none; /* Removed outline */
+      font-family: Arial, sans-serif;  /* Default font */
+    }
+
+    .note-editor .header {
+      font-size: 25px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      width: 100%;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+      width: 300px;
+      text-align: center;
+    }
+
+    .modal.open {
+      display: block;
+    }
+
+    .modal input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    .modal button {
+      padding: 10px 20px;
+      background-color: #0073e6;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+
+    .modal button:hover {
+      background-color: #005bb5;
+    }
+
+    .font-select {
+      font-size: 16px;
+    }
+
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <div class="navbar">
+    <div class="path">
+      <span id="page-name">Home</span> / <span id="file-name">Untitled</span>
+    </div>
+    <div class="nav-actions">
+      <button id="preview-btn">Preview</button>
+      <button id="edit-btn">Edit</button>
+      <button onclick="showOptions()">&#x2022;&#x2022;&#x2022;</button>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header" onclick="toggleSidebar()">All Notes</div>
+    <div class="notes-list" id="notes-list">
+      <!-- Dynamic notes will be listed here -->
+    </div>
+    <button onclick="createNewNote()">+ New Note</button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content" id="main-content">
+    <div class="note-editor">
+      <input type="text" id="note-title" class="header" placeholder="Enter note title" oninput="autoSave()">
+      <div class="cover">
+        <img id="cover-image" src="https://via.placeholder.com/600x200" alt="Cover">
+        <span class="emoji" id="emoji" onclick="changeEmoji()">📒</span>
+      </div>
+      <textarea id="note-content" class="note-content" placeholder="Write your notes here..." oninput="autoSave()"></textarea>
+    </div>
+  </div>
+
+  <!-- Modal for File Name Change -->
+  <div id="options-modal" class="modal">
+    <input type="file" id="file-upload" accept=".txt, .md" onchange="handleFileUpload()" />
+    <button onclick="closeModal()">Close</button>
+    <div>
+      <label for="font-select">Select Font:</label>
+      <select id="font-select" class="font-select" onchange="changeFont()">
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="Times New Roman, serif">Times New Roman</option>
+        <option value="Monospace, monospace">Monospace</option>
+      </select>
+    </div>
+  </div>
+
+  <script>
+    let notes = JSON.parse(localStorage.getItem('notes')) || {};
+    let currentNote = null;
+    let trash = JSON.parse(localStorage.getItem('trash')) || {};
+
+    // Create New Note
+    function createNewNote() {
+      const noteId = 'note_' + Date.now();
+      const noteTitle = 'Untitled Note';
+      notes[noteId] = { title: noteTitle, content: '', deletedAt: null };
+      localStorage.setItem('notes', JSON.stringify(notes));
+      loadNotes();
+      loadNoteContent(noteId);
+    }
+
+    // Load all notes in the sidebar
+    function loadNotes() {
+      const notesList = document.getElementById('notes-list');
+      notesList.innerHTML = '';
+      Object.keys(notes).forEach(noteId => {
+        if (notes[noteId].deletedAt) {
+          // Check if note is in trash for more than 30 days
+          if (new Date() - new Date(notes[noteId].deletedAt) > 30 * 24 * 60 * 60 * 1000) {
+            delete notes[noteId];
+          }
+        } else {
+          const noteItem = document.createElement('div');
+          noteItem.classList.add('note-item');
+          
+          const addIcon = document.createElement('span');
+          addIcon.classList.add('add-icon');
+          addIcon.innerHTML = '+';
+          addIcon.onclick = function() {
+            loadNoteContent(noteId);
+          };
+          
+          noteItem.textContent = notes[noteId].title;
+          noteItem.appendChild(addIcon);
+          
+          const deleteBtn = document.createElement('button');
+          deleteBtn.textContent = 'Delete';
+          deleteBtn.onclick = function(e) {
+            e.stopPropagation();
+            deleteNote(noteId);
+          };
+          noteItem.appendChild(deleteBtn);
+          notesList.appendChild(noteItem);
+        }
+      });
+      localStorage.setItem('notes', JSON.stringify(notes));
+    }
+
+    // Load the content of a selected note
+    function loadNoteContent(noteId) {
+      currentNote = noteId;
+      document.getElementById('note-title').value = notes[noteId].title;
+      document.getElementById('note-content').value = notes[noteId].content;
+      document.getElementById('file-name').textContent = notes[noteId].title + '.md';
+      document.getElementById('page-name').textContent = 'Home';
+    }
+
+    // Delete Note and move to trash
+    function deleteNote(noteId) {
+      notes[noteId].deletedAt = new Date().toISOString();
+      trash[noteId] = notes[noteId];
+      delete notes[noteId];
+      localStorage.setItem('notes', JSON.stringify(notes));
+      localStorage.setItem('trash', JSON.stringify(trash));
+      loadNotes();
+    }
+
+    // Auto-save every second
+    let saveInterval = setInterval(autoSave, 1000);
+
+    function autoSave() {
+      if (currentNote !== null) {
+        const noteContent = document.getElementById('note-content').value;
+        const noteTitle = document.getElementById('note-title').value;
+        notes[currentNote].content = noteContent;
+        notes[currentNote].title = noteTitle;
+        localStorage.setItem('notes', JSON.stringify(notes));
+        loadNotes();
+      }
+    }
+
+    // Preview mode
+    document.getElementById('preview-btn').onclick = function() {
+      const mdContent = document.getElementById('note-content').value;
+      const htmlContent = marked(mdContent);
+      document.getElementById('note-content').style.display = 'none';
+      document.getElementById('note-content').insertAdjacentHTML('afterend', `<div class="md-preview">${htmlContent}</div>`);
+    };
+
+    document.getElementById('edit-btn').onclick = function() {
+      document.querySelector('.md-preview').remove();
+      document.getElementById('note-content').style.display = 'block';
+    };
+
+    // Emoji changer
+    function changeEmoji() {
+      const emojis = ['📒', '📓', '📔', '📕'];
+      let currentEmoji = document.getElementById('emoji').textContent;
+      let currentIndex = emojis.indexOf(currentEmoji);
+      let nextIndex = (currentIndex + 1) % emojis.length;
+      document.getElementById('emoji').textContent = emojis[nextIndex];
+    }
+
+    // File upload
+    function handleFileUpload() {
+      const fileInput = document.getElementById('file-upload');
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const content = event.target.result;
+        document.getElementById('note-content').value = content;
+      };
+      reader.readAsText(file);
+    }
+
+    // File name change modal
+    function showOptions() {
+      document.getElementById('options-modal').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('options-modal').classList.remove('open');
+    }
+
+    // Change font style
+    function changeFont() {
+      const selectedFont = document.getElementById('font-select').value;
+      document.getElementById('note-content').style.fontFamily = selectedFont;
+    }
+
+    // Initial load
+    loadNotes();
+  </script>
+
+</body>
+</html>
